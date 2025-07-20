@@ -1,0 +1,48 @@
+  {
+  "project_info": {
+    "project_number": "899130487296",
+    "project_id": "hassniya1204",
+    "storage_bucket": "hassniya1204.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:899130487296:android:3280abe4dcce51c08b5ee5",
+        "android_client_info": {
+          "package_name": "online.smce.hassaniya"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9q5C91R6n1a01iW7r3yAMQhJR8Mvr600"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:899130487296:android:82b5fb4ff880aa7a8b5ee5",
+        "android_client_info": {
+          "package_name": "online.smce.hassaniya_translation.hassaniya_translation"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9q5C91R6n1a01iW7r3yAMQhJR8Mvr600"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
