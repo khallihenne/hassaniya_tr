@@ -5,9 +5,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import '../services/upload.dart';
- // ⚠️ important
+// ⚠️ important
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,16 +23,27 @@ class _HomePageState extends State<HomePage> {
   String motActuel = '';
   bool estArabe = false;
   File? audioFile;
+  bool _isRecording = false;
+  String? _tempAudioPath;
+  AudioRecorder? _record;
 
   @override
   void initState() {
     super.initState();
+    _record = AudioRecorder();
     chargerMots();
     _traductionController.addListener(() {
       setState(() {
         estArabe = contientArabe(_traductionController.text);
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _record?.dispose();
+    _traductionController.dispose();
+    super.dispose();
   }
 
   void chargerMots() async {
@@ -54,6 +66,7 @@ class _HomePageState extends State<HomePage> {
         _traductionController.clear();
         audioFile = null;
         estArabe = false;
+        _isRecording = false;
       });
     }
   }
@@ -63,27 +76,58 @@ class _HomePageState extends State<HomePage> {
     return regexArabe.hasMatch(texte);
   }
 
-  Future<void> choisirFichierAudio() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.audio);
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        audioFile = File(result.files.single.path!);
-      });
-
-      // 🔁 ici tu fais ton upload vers Firebase Storage (hors de ce fichier),
-      // puis tu obtiens une URL, que tu passes à la méthode suivante :
-
-      // String audioUrl = 'https://your-audio-url-from-storage.com'; // <== à remplacer
-
-      await UploadService.enregistrerTraduction(
-        mot: motActuel,
-        texte: _traductionController.text,
-        langue: estArabe ? 'arabe' : 'latin',
-        audioFile: audioFile,
-      );
-
-      afficherMotAleatoire(); // passe au mot suivant
+  Future<void> _startRecording() async {
+    if (_record != null && await _record!.hasPermission()) {
+      final tempDir = await getTemporaryDirectory();
+      _tempAudioPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.m4a';
+      if (_tempAudioPath != null) {
+        await _record!.start(
+          const RecordConfig(),
+          path: _tempAudioPath!,
+        );
+        setState(() => _isRecording = true);
+      }
+        
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission denied for recording')));
     }
+  }
+
+  Future<void> _stopRecording() async {
+    if (_record != null) {
+      final path = await _record!.stop();
+      setState(() => _isRecording = false);
+      if (path != null) {
+        audioFile = File(path);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio recorded successfully')));
+      }
+    }
+  }
+
+  void _toggleRecording() {
+    if (_isRecording) {
+      _stopRecording();
+    } else {
+      _startRecording();
+    }
+  }
+
+  Future<void> _saveAndNext() async {
+    if (_isRecording) {
+      await _stopRecording();
+    }
+    final String texte = _traductionController.text;
+    if (texte.isEmpty && audioFile == null) {
+      return;
+    }
+    final String langue = texte.isEmpty ? 'arabe' : (estArabe ? 'arabe' : 'latin');
+    await UploadService.enregistrerTraduction(
+      mot: motActuel,
+      texte: texte,
+      langue: langue,
+      audioFile: audioFile,
+    );
+    afficherMotAleatoire();
   }
 
   @override
@@ -122,8 +166,11 @@ class _HomePageState extends State<HomePage> {
                 hintText: 'Écrire la traduction ici…',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.mic, color: Colors.orange),
-                  onPressed: choisirFichierAudio, // déclenche l'enregistrement audio
+                  icon: Icon(
+                    _isRecording ? Icons.stop : Icons.mic,
+                    color: _isRecording ? Colors.red : Colors.orange,
+                  ),
+                  onPressed: _toggleRecording,
                 ),
               ),
             ),
@@ -134,6 +181,13 @@ class _HomePageState extends State<HomePage> {
                 fontStyle: FontStyle.italic,
                 color: estArabe ? Colors.deepPurple : Colors.brown,
               ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: (_traductionController.text.isNotEmpty || audioFile != null || _isRecording)
+                  ? _saveAndNext
+                  : null,
+              child: const Text('Save and Next'),
             ),
           ],
         ),
